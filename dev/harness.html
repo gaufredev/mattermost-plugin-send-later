@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send Later harness</title>
+<style>
+:root{--center-channel-bg:#ffffff;--center-channel-color:#3f4350;--center-channel-color-rgb:63,67,80;--button-bg:#1c58d9;--button-bg-rgb:28,88,217;--button-color:#ffffff;--error-text:#d24b4e;--link-color:#386fe5}
+:root.dark{--center-channel-bg:#1f1f1f;--center-channel-color:#dddddd;--center-channel-color-rgb:221,221,221;--button-bg:#4a7ebb;--button-bg-rgb:74,126,187;--button-color:#ffffff;--error-text:#ff6461;--link-color:#7ab1ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Open Sans",-apple-system,"Apple SD Gothic Neo",sans-serif;font-size:14px;background:var(--center-channel-bg);color:var(--center-channel-color)}
+.app{display:flex;height:100vh}
+.center{flex:1;display:flex;flex-direction:column;min-width:0}
+.channel-head{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 16px;border-bottom:1px solid rgba(var(--center-channel-color-rgb),.16);font-weight:600}
+.hdr-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:4px;background:transparent;color:rgba(var(--center-channel-color-rgb),.64);cursor:pointer}
+.spacer{flex:1}
+.editor{margin:16px;border:1px solid rgba(var(--center-channel-color-rgb),.24);border-radius:4px}
+.editor textarea{display:block;width:100%;padding:12px;border:0;background:transparent;color:inherit;font:inherit;resize:none}
+.files{display:flex;gap:6px;padding:0 12px 8px}
+.file{padding:4px 8px;border:1px solid rgba(var(--center-channel-color-rgb),.16);border-radius:4px;font-size:12px}
+.toolbar{display:flex;align-items:center;gap:4px;padding:4px 8px;border-top:1px solid rgba(var(--center-channel-color-rgb),.08)}
+.fmt{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;color:rgba(var(--center-channel-color-rgb),.56)}
+.rhs{display:none;width:400px;border-left:1px solid rgba(var(--center-channel-color-rgb),.16);overflow:auto}
+.rhs.open{display:block}
+.rhs-head{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 16px;border-bottom:1px solid rgba(var(--center-channel-color-rgb),.16);font-weight:600}
+.rhs-close{border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer}
+@media (max-width:600px){.rhs.open{position:fixed;inset:0;width:auto;background:var(--center-channel-bg)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="/react/react/umd/react.development.js"></script>
+<script src="/react/react-dom/umd/react-dom.development.js"></script>
+<script>
+// Minimal stand-ins for what Mattermost gives a plugin.
+const params = new URLSearchParams(location.search);
+if (params.get('theme') === 'dark') {
+    document.documentElement.classList.add('dark');
+}
+const state = {entities: {
+    users: {currentUserId: 'userko', profiles: {userko: {id: 'userko', locale: params.get('lang') || 'ko'}}},
+    teams: {currentTeamId: 'team1', teams: {team1: {id: 'team1', name: 'wave'}}},
+    general: {config: {DefaultClientLocale: 'en'}},
+}};
+const storeListeners = new Set();
+let rhsOpen = false;
+const store = {
+    getState: () => state,
+    dispatch: (action) => {
+        if (action && action.type) {
+            rhsOpen = action.type === 'show' ? true : action.type === 'hide' ? false : !rhsOpen;
+            storeListeners.forEach((fn) => fn());
+        }
+        return action;
+    },
+    subscribe: (fn) => {
+        storeListeners.add(fn);
+        return () => storeListeners.delete(fn);
+    },
+};
+const registered = {editor: [], rhs: null, header: [], ws: {}, reconnect: []};
+const registry = {
+    registerPostEditorActionComponent: (c) => registered.editor.push(c),
+    registerRightHandSidebarComponent: ({component, title}) => {
+        registered.rhs = {component, title};
+        return {id: 'rhs', showRHSPlugin: {type: 'show'}, hideRHSPlugin: {type: 'hide'}, toggleRHSPlugin: {type: 'toggle'}};
+    },
+    registerChannelHeaderButtonAction: (o) => registered.header.push(o),
+    registerWebSocketEventHandler: (event, fn) => {
+        registered.ws[event] = fn;
+    },
+    registerReconnectHandler: (fn) => registered.reconnect.push(fn),
+};
+window.WebappUtils = {browserHistory: {push: (path) => {
+    window.__navigated = path;
+}}};
+window.registerPlugin = (id, plugin) => {
+    window.__pluginId = id;
+    plugin.initialize(registry, store);
+};
+</script>
+<script src="/main.js"></script>
+<script>
+const h = React.createElement;
+
+function Composer() {
+    const [draft, setDraft] = React.useState({message: '', fileInfos: [], uploadsInProgress: [], channelId: 'chan1', rootId: '', createAt: 0, updateAt: 0});
+    window.__setDraft = setDraft;
+
+    // Same shape as Mattermost's usePluginItems: updateText spreads the draft it closed over.
+    const updateText = (message) => setDraft({...draft, message});
+
+    return h('div', {className: 'editor'},
+        // Typing uses a functional update so test steps that change the draft can't be undone by a stale copy.
+        h('textarea', {id: 'post-box', rows: 3, value: draft.message, placeholder: '메시지 작성', onChange: (e) => {
+            const message = e.target.value;
+            setDraft((d) => ({...d, message}));
+        }}),
+        draft.fileInfos.length ? h('div', {className: 'files'}, ...draft.fileInfos.map((f) => h('span', {key: f.id, className: 'file'}, f.name))) : null,
+        h('div', {className: 'toolbar'},
+            h('b', {className: 'fmt'}, 'B'),
+            h('i', {className: 'fmt'}, 'I'),
+            ...registered.editor.map((C, i) => h(C, {key: i, draft, updateText, getSelectedText: () => ({})})),
+        ),
+    );
+}
+
+function App() {
+    const [, force] = React.useState(0);
+    React.useEffect(() => store.subscribe(() => force((n) => n + 1)), []);
+    const Rhs = registered.rhs.component;
+    const Title = registered.rhs.title;
+    return h('div', {className: 'app'},
+        h('div', {className: 'center'},
+            h('div', {className: 'channel-head'},
+                h('span', null, 'Town Square'),
+                ...registered.header.map((b, i) => h('button', {key: i, className: 'hdr-btn', title: typeof b.tooltipText === 'function' ? b.tooltipText() : b.tooltipText, onClick: b.action}, b.icon)),
+            ),
+            h('div', {className: 'spacer'}),
+            h(Composer),
+        ),
+        h('div', {className: 'rhs' + (rhsOpen ? ' open' : '')},
+            h('div', {className: 'rhs-head'}, h(Title), h('button', {className: 'rhs-close', onClick: () => store.dispatch({type: 'hide'})}, '×')),
+            rhsOpen ? h(Rhs) : null,
+        ),
+    );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+
+// Test hooks: add a real (fake-server) file to the draft; fire the websocket event.
+window.__addFile = async () => {
+    const f = await (await fetch('/__file')).json();
+    window.__setDraft((d) => ({...d, fileInfos: [...d.fileInfos, {id: f.id, name: f.name}]}));
+};
+window.__wsChanged = () => registered.ws['custom_' + window.__pluginId + '_changed']();
+</script>
+</body>
+</html>

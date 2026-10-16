@@ -1,0 +1,7 @@
+dist/
+# Go build output (go build in server/)
+server/server
+*.exe
+.DS_Store
+dev/shots/
+.deploy.env
