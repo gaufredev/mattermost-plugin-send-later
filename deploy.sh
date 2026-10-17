@@ -16,11 +16,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Values given on the command line win over .deploy.env.
+cli_url="${MM_URL:-}" cli_arch="${ARCH:-}" cli_token="${MM_TOKEN:-}"
 if [ -f .deploy.env ]; then
     # shellcheck disable=SC1091
     . ./.deploy.env
 fi
-MM_URL="${MM_URL:-}"
+MM_URL="${cli_url:-${MM_URL:-}}"
+ARCH="${cli_arch:-${ARCH:-}}"
+MM_TOKEN="${cli_token:-${MM_TOKEN:-}}"
 MM_URL="${MM_URL%/}"
 if [ -z "$MM_URL" ]; then
     echo "Which server? Run as  MM_URL=https://chat.example.com ./deploy.sh  or put MM_URL=… in .deploy.env" >&2
