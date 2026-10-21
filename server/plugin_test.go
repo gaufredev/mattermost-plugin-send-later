@@ -71,6 +71,21 @@ func TestPresets(t *testing.T) {
 		}
 	})
 
+	t.Run("after midnight: today at the morning time comes first", func(t *testing.T) {
+		ps := computePresets(seoul(t, "2026-10-22 01:36"), ko, cfg)
+		if got := strings.Join(presetKeys(ps), ","); got != "in1h,in2h,morning,today,tomorrow,monday" {
+			t.Fatalf("keys = %s", got)
+		}
+		m, _ := presetByKey(ps, "morning")
+		tm, _ := presetByKey(ps, "tomorrow")
+		if m.Label != "오늘 오전 10:00" || m.SendAt != seoul(t, "2026-10-22 10:00").UnixMilli() || tm.SendAt != seoul(t, "2026-10-23 10:00").UnixMilli() {
+			t.Fatalf("morning = %+v, tomorrow = %+v", m, tm)
+		}
+		if _, ok := presetByKey(computePresets(seoul(t, "2026-10-22 10:30"), ko, cfg), "morning"); ok {
+			t.Fatal("morning still offered after 10:00")
+		}
+	})
+
 	t.Run("after 17:00 there is no today", func(t *testing.T) {
 		ps := computePresets(seoul(t, "2026-10-15 16:59"), ko, cfg)
 		if _, ok := presetByKey(ps, "today"); ok {

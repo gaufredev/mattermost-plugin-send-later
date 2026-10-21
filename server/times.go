@@ -97,8 +97,16 @@ func computePresets(now time.Time, up userPrefs, cfg *configuration) []preset {
 		out = append(out, preset{Key: fmt.Sprintf("in%dh", h), Label: label, Detail: detail, SendAt: model.GetMillisForTime(at)})
 	}
 
+	// Late at night (after midnight) the morning hasn't come yet: offer today at the morning
+	// time ("내일" time), so a message written at 1 AM can still go out this morning.
+	mh, mm := parseClock(cfg.TomorrowTime, 10, 0)
+	morning := time.Date(y, mo, d, mh, mm, 0, 0, up.Loc)
+	if morning.After(n.Add(time.Minute)) {
+		add("morning", morning)
+	}
+
 	h, m := parseClock(cfg.TodayTime, 17, 0)
-	if today := time.Date(y, mo, d, h, m, 0, 0, up.Loc); today.After(n.Add(time.Minute)) {
+	if today := time.Date(y, mo, d, h, m, 0, 0, up.Loc); today.After(n.Add(time.Minute)) && !today.Equal(morning) {
 		add("today", today)
 	}
 

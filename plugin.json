@@ -5,7 +5,7 @@
     "homepage_url": "https://github.com/gaufredev/mattermost-plugin-send-later",
     "support_url": "https://github.com/gaufredev/mattermost-plugin-send-later/issues",
     "icon_path": "assets/icon.svg",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "min_server_version": "11.7.0",
     "server": {
         "executables": {
@@ -38,10 +38,10 @@
             },
             {
                 "key": "TomorrowTime",
-                "display_name": "「내일」 시간 · \"Tomorrow\" time:",
+                "display_name": "「내일」(아침) 시간 · \"Tomorrow\" (morning) time:",
                 "type": "text",
                 "default": "10:00",
-                "help_text": "24시간 형식(HH:MM). · 24-hour time (HH:MM)."
+                "help_text": "24시간 형식(HH:MM). 자정이 지나 이 시간 전이면 「오늘」 이 시간도 표시됩니다. · 24-hour time (HH:MM). After midnight and before this time, \"Today\" at this time is offered too."
             },
             {
                 "key": "MondayTime",
