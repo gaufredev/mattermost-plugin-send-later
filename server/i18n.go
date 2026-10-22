@@ -11,6 +11,7 @@ var messages = map[string][2]string{
 	// Quick choices and time labels.
 	"preset.hours":    {"%d시간 후", "In %d hours"},
 	"preset.hour":     {"1시간 후", "In 1 hour"},
+	"preset.early":    {"오늘 %s", "Today at %s"},
 	"preset.morning":  {"오늘 %s", "Today at %s"},
 	"preset.today":    {"오늘 %s", "Today at %s"},
 	"preset.tomorrow": {"내일 %s", "Tomorrow at %s"},

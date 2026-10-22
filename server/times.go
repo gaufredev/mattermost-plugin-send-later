@@ -99,9 +99,15 @@ func computePresets(now time.Time, up userPrefs, cfg *configuration) []preset {
 
 	// Late at night (after midnight) the morning hasn't come yet: offer today at the morning
 	// time ("내일" time), so a message written at 1 AM can still go out this morning.
+	// An earlier choice (09:00 by default) comes first; empty setting = 09:00, "0" hides it.
+	if eh, em, ok := earlyClock(cfg.EarlyTime); ok {
+		if early := time.Date(y, mo, d, eh, em, 0, 0, up.Loc); early.After(n.Add(time.Minute)) {
+			add("early", early)
+		}
+	}
 	mh, mm := parseClock(cfg.TomorrowTime, 10, 0)
 	morning := time.Date(y, mo, d, mh, mm, 0, 0, up.Loc)
-	if morning.After(n.Add(time.Minute)) {
+	if morning.After(n.Add(time.Minute)) && !(len(out) > 0 && out[len(out)-1].Key == "early" && out[len(out)-1].SendAt == model.GetMillisForTime(morning)) {
 		add("morning", morning)
 	}
 
@@ -124,6 +130,16 @@ func computePresets(now time.Time, up userPrefs, cfg *configuration) []preset {
 	}
 
 	return out
+}
+
+// earlyClock reads the "early morning" setting: empty means 09:00, "0" or "off" hides it.
+func earlyClock(s string) (int, int, bool) {
+	s = strings.TrimSpace(s)
+	if s == "0" || strings.EqualFold(s, "off") {
+		return 0, 0, false
+	}
+	h, m := parseClock(s, 9, 0)
+	return h, m, true
 }
 
 func clockLabel(t time.Time, up userPrefs) string {

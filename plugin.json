@@ -5,7 +5,7 @@
     "homepage_url": "https://github.com/gaufredev/mattermost-plugin-send-later",
     "support_url": "https://github.com/gaufredev/mattermost-plugin-send-later/issues",
     "icon_path": "assets/icon.svg",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "min_server_version": "11.7.0",
     "server": {
         "executables": {
@@ -28,6 +28,13 @@
                 "type": "text",
                 "default": "1,2",
                 "help_text": "쉼표로 나눈 시간 수(1–24, 최대 4개). 0이면 숨깁니다. · Hours separated by commas (1–24, up to 4). 0 hides them."
+            },
+            {
+                "key": "EarlyTime",
+                "display_name": "「오늘」 아침 시간 · \"Today\" early time:",
+                "type": "text",
+                "default": "09:00",
+                "help_text": "24시간 형식(HH:MM). 이 시간 전이면 「오늘 오전 9:00」 같은 선택지가 표시됩니다. 0이면 숨깁니다. · 24-hour time (HH:MM). Before this time, \"Today at 9:00 AM\" is offered. 0 hides it."
             },
             {
                 "key": "TodayTime",

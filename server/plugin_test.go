@@ -73,13 +73,27 @@ func TestPresets(t *testing.T) {
 
 	t.Run("after midnight: today at the morning time comes first", func(t *testing.T) {
 		ps := computePresets(seoul(t, "2026-10-22 01:36"), ko, cfg)
-		if got := strings.Join(presetKeys(ps), ","); got != "in1h,in2h,morning,today,tomorrow,monday" {
+		if got := strings.Join(presetKeys(ps), ","); got != "in1h,in2h,early,morning,today,tomorrow,monday" {
 			t.Fatalf("keys = %s", got)
 		}
 		m, _ := presetByKey(ps, "morning")
 		tm, _ := presetByKey(ps, "tomorrow")
 		if m.Label != "오늘 오전 10:00" || m.SendAt != seoul(t, "2026-10-22 10:00").UnixMilli() || tm.SendAt != seoul(t, "2026-10-23 10:00").UnixMilli() {
 			t.Fatalf("morning = %+v, tomorrow = %+v", m, tm)
+		}
+		e, _ := presetByKey(ps, "early")
+		if e.Label != "오늘 오전 9:00" || e.SendAt != seoul(t, "2026-10-22 09:00").UnixMilli() {
+			t.Fatalf("early = %+v", e)
+		}
+		at930 := computePresets(seoul(t, "2026-10-22 09:30"), ko, cfg)
+		if _, ok := presetByKey(at930, "early"); ok {
+			t.Fatal("9:00 still offered at 9:30")
+		}
+		if _, ok := presetByKey(at930, "morning"); !ok {
+			t.Fatal("10:00 should still be offered at 9:30")
+		}
+		if _, ok := presetByKey(computePresets(seoul(t, "2026-10-22 01:36"), ko, &configuration{EarlyTime: "0"}), "early"); ok {
+			t.Fatal(`EarlyTime "0" should hide it`)
 		}
 		if _, ok := presetByKey(computePresets(seoul(t, "2026-10-22 10:30"), ko, cfg), "morning"); ok {
 			t.Fatal("morning still offered after 10:00")

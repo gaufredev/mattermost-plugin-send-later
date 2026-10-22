@@ -9,6 +9,7 @@ import (
 // configuration mirrors settings_schema in plugin.json.
 type configuration struct {
 	RelativeHours   string
+	EarlyTime       string
 	TodayTime       string
 	TomorrowTime    string
 	MondayTime      string
