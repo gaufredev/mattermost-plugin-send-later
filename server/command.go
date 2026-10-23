@@ -110,8 +110,15 @@ func (p *Plugin) whenElements(up userPrefs, keepLabel string) []model.DialogElem
 	for _, ps := range presets {
 		value := atPrefix + strconv.FormatInt(ps.SendAt, 10)
 		options = append(options, &model.PostActionOptions{Text: ps.Label + " · " + ps.Detail, Value: value})
-		if def == "" && ps.Key == "tomorrow" {
-			def = value
+		if def == "" && ps.Key == "morning" {
+			def = value // late at night: this morning, not the day after
+		}
+	}
+	if def == "" {
+		for _, ps := range presets {
+			if ps.Key == "tomorrow" {
+				def = atPrefix + strconv.FormatInt(ps.SendAt, 10)
+			}
 		}
 	}
 

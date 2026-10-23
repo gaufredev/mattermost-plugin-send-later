@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 )
@@ -215,13 +216,19 @@ func (p *Plugin) rootPreview(userID, rootID string) string {
 func (p *Plugin) apiPresets(w http.ResponseWriter, _ *http.Request, userID string) {
 	up := p.prefsFor(userID)
 	now := p.now().In(up.Loc)
-	tomorrow := now.AddDate(0, 0, 1)
 	h, m := parseClock(p.getConfiguration().TomorrowTime, 10, 0)
+	// The custom picker starts on the next morning: today if that morning hasn't come yet
+	// (late at night, after midnight), otherwise tomorrow.
+	y, mo, d := now.Date()
+	start := time.Date(y, mo, d, h, m, 0, 0, up.Loc)
+	if !start.After(now) {
+		start = start.AddDate(0, 0, 1)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"presets":     computePresets(now, up, p.getConfiguration()),
 		"timezone":    up.TZName,
 		"today":       now.Format("2006-01-02"),
-		"custom_date": tomorrow.Format("2006-01-02"),
+		"custom_date": start.Format("2006-01-02"),
 		"custom_time": fmt.Sprintf("%02d:%02d", h, m),
 	})
 }

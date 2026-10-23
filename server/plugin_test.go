@@ -1080,6 +1080,31 @@ func TestDirectMessageLabelFallback(t *testing.T) {
 	}
 }
 
+func TestCustomPickerStartsOnTheNextMorning(t *testing.T) {
+	cases := map[string]string{
+		"2026-10-23 00:10": "2026-10-23", // after midnight: this morning
+		"2026-10-23 09:59": "2026-10-23",
+		"2026-10-23 10:00": "2026-10-24", // morning has come: tomorrow
+		"2026-10-23 23:50": "2026-10-24",
+	}
+	for at, want := range cases {
+		f := newFixture(t, seoul(t, at))
+		_, pr := doJSON(t, f, "GET", "/api/v1/presets", userKo, nil)
+		if pr["custom_date"] != want || pr["custom_time"] != "10:00" {
+			t.Errorf("%s: custom default = %v %v, want %s 10:00", at, pr["custom_date"], pr["custom_time"], want)
+		}
+	}
+}
+
+func TestPhoneFormDefaultsToThisMorningAfterMidnight(t *testing.T) {
+	f := newFixture(t, seoul(t, "2026-10-23 01:30"))
+	_, _ = f.p.ExecuteCommand(nil, &model.CommandArgs{Command: "/later", UserId: userKo, ChannelId: chanID, TriggerId: "t"})
+	want := "at:" + strconv.FormatInt(seoul(t, "2026-10-23 10:00").UnixMilli(), 10)
+	if got := f.api.dialogs[0].Dialog.Elements[1].Default; got != want {
+		t.Fatalf("default = %s, want this morning %s", got, want)
+	}
+}
+
 func TestCommandAutocompleteIsValid(t *testing.T) {
 	f := newFixture(t, seoul(t, thursdayAfternoon))
 	cmd := f.p.command()
