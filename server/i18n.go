@@ -9,16 +9,17 @@ import (
 // Korean uses 합니다체 with 「~해 주세요」 for requests.
 var messages = map[string][2]string{
 	// Quick choices and time labels.
-	"preset.hours":    {"%d시간 후", "In %d hours"},
-	"preset.hour":     {"1시간 후", "In 1 hour"},
-	"preset.early":    {"오늘 %s", "Today at %s"},
-	"preset.morning":  {"오늘 %s", "Today at %s"},
-	"preset.today":    {"오늘 %s", "Today at %s"},
-	"preset.tomorrow": {"내일 %s", "Tomorrow at %s"},
-	"preset.monday":   {"월요일 %s", "Monday at %s"},
-	"when.today":      {"오늘 %s", "today at %s"},
-	"when.tomorrow":   {"내일 %s", "tomorrow at %s"},
-	"when.date":       {"%s %s", "%s at %s"},
+	"preset.hours":          {"%d시간 후", "In %d hours"},
+	"preset.hour":           {"1시간 후", "In 1 hour"},
+	"preset.early":          {"오늘 %s", "Today at %s"},
+	"preset.tomorrow_early": {"내일 %s", "Tomorrow at %s"},
+	"preset.morning":        {"오늘 %s", "Today at %s"},
+	"preset.today":          {"오늘 %s", "Today at %s"},
+	"preset.tomorrow":       {"내일 %s", "Tomorrow at %s"},
+	"preset.monday":         {"월요일 %s", "Monday at %s"},
+	"when.today":            {"오늘 %s", "today at %s"},
+	"when.tomorrow":         {"내일 %s", "tomorrow at %s"},
+	"when.date":             {"%s %s", "%s at %s"},
 
 	// Confirmations.
 	"confirm":        {"%s에 보내도록 예약했습니다. ⏰", "Scheduled for %s. ⏰"},

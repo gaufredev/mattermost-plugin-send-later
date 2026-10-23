@@ -44,10 +44,10 @@ func TestPresets(t *testing.T) {
 
 	t.Run("thursday afternoon: in 1 and 2 hours, today, tomorrow, monday", func(t *testing.T) {
 		ps := computePresets(seoul(t, thursdayAfternoon), ko, cfg)
-		if got := strings.Join(presetKeys(ps), ","); got != "in1h,in2h,today,tomorrow,monday" {
+		if got := strings.Join(presetKeys(ps), ","); got != "in1h,in2h,today,tomorrow_early,tomorrow,monday" {
 			t.Fatalf("keys = %s", got)
 		}
-		want := map[string]string{"in1h": "2026-10-15 15:00", "in2h": "2026-10-15 16:00", "today": "2026-10-15 17:00", "tomorrow": "2026-10-16 10:00", "monday": "2026-10-19 10:00"}
+		want := map[string]string{"in1h": "2026-10-15 15:00", "in2h": "2026-10-15 16:00", "today": "2026-10-15 17:00", "tomorrow_early": "2026-10-16 09:00", "tomorrow": "2026-10-16 10:00", "monday": "2026-10-19 10:00"}
 		for _, p := range ps {
 			if p.SendAt != seoul(t, want[p.Key]).UnixMilli() {
 				t.Errorf("%s = %s, want %s", p.Key, time.UnixMilli(p.SendAt).In(loc), want[p.Key])
@@ -57,7 +57,7 @@ func TestPresets(t *testing.T) {
 		for _, p := range ps {
 			labels = append(labels, p.Label+" / "+p.Detail)
 		}
-		if got := strings.Join(labels, " | "); got != "1시간 후 / 오후 3:00 | 2시간 후 / 오후 4:00 | 오늘 오후 5:00 / 10월 15일 (목) | 내일 오전 10:00 / 10월 16일 (금) | 월요일 오전 10:00 / 10월 19일 (월)" {
+		if got := strings.Join(labels, " | "); got != "1시간 후 / 오후 3:00 | 2시간 후 / 오후 4:00 | 오늘 오후 5:00 / 10월 15일 (목) | 내일 오전 9:00 / 10월 16일 (금) | 내일 오전 10:00 / 10월 16일 (금) | 월요일 오전 10:00 / 10월 19일 (월)" {
 			t.Fatalf("labels = %s", got)
 		}
 	})
@@ -109,7 +109,7 @@ func TestPresets(t *testing.T) {
 
 	t.Run("sunday: tomorrow is monday, so monday is not repeated", func(t *testing.T) {
 		ps := computePresets(seoul(t, "2026-10-18 20:00"), ko, cfg)
-		if got := strings.Join(presetKeys(ps), ","); got != "in1h,in2h,tomorrow" {
+		if got := strings.Join(presetKeys(ps), ","); got != "in1h,in2h,tomorrow_early,tomorrow" {
 			t.Fatalf("keys = %s", got)
 		}
 	})
@@ -142,11 +142,55 @@ func TestPresets(t *testing.T) {
 		}
 	})
 
+	t.Run("after 9:00 tomorrow at 9:00 is offered (not before, not when hidden)", func(t *testing.T) {
+		at930 := computePresets(seoul(t, "2026-10-23 09:30"), ko, cfg)
+		te, ok := presetByKey(at930, "tomorrow_early")
+		if !ok || te.Label != "내일 오전 9:00" || te.SendAt != seoul(t, "2026-10-24 09:00").UnixMilli() {
+			t.Fatalf("at 9:30: %+v %v", te, presetKeys(at930))
+		}
+		en := userPrefs{Loc: loc, TZName: "Asia/Seoul"}
+		if te, _ := presetByKey(computePresets(seoul(t, "2026-10-23 09:30"), en, cfg), "tomorrow_early"); te.Label != "Tomorrow at 9:00 AM" {
+			t.Fatalf("English label = %q", te.Label)
+		}
+		if _, ok := presetByKey(computePresets(seoul(t, "2026-10-23 08:30"), ko, cfg), "tomorrow_early"); ok {
+			t.Fatal("before 9:00 today's 9:00 is offered, not tomorrow's")
+		}
+		if _, ok := presetByKey(computePresets(seoul(t, "2026-10-23 09:30"), ko, &configuration{EarlyTime: "0"}), "tomorrow_early"); ok {
+			t.Fatal(`EarlyTime "0" should hide it`)
+		}
+	})
+
+	t.Run("never the same moment twice, always in time order", func(t *testing.T) {
+		odd := []*configuration{
+			{MondayTime: "09:00"},                    // Sunday: tomorrow 9:00 = Monday 9:00
+			{EarlyTime: "11:00"},                     // early later than the morning time
+			{EarlyTime: "10:00"},                     // early = morning
+			{TodayTime: "10:00"},                     // today = morning
+			{RelativeHours: "3", TodayTime: "12:00"}, // in 3 hours = today
+		}
+		times := []string{"2026-10-18 20:00", "2026-10-22 01:36", "2026-10-22 09:00", "2026-10-22 14:00"}
+		for _, c := range odd {
+			for _, at := range times {
+				ps := computePresets(seoul(t, at), ko, c)
+				for i := range ps {
+					if i > 0 && ps[i].SendAt <= ps[i-1].SendAt {
+						t.Errorf("%+v at %s: %v not strictly in time order", *c, at, presetKeys(ps))
+						break
+					}
+				}
+			}
+		}
+		sunday := computePresets(seoul(t, "2026-10-18 20:00"), ko, &configuration{MondayTime: "09:00"})
+		if got := strings.Join(presetKeys(sunday), ","); got != "in1h,in2h,tomorrow_early,tomorrow" {
+			t.Fatalf("Sunday with Monday 9:00: %s", got)
+		}
+	})
+
 	t.Run("relative hours setting", func(t *testing.T) {
 		cases := map[string]string{
 			"":              "in1h,in2h",
 			"0":             "",
-			"3, 1":          "in3h,in1h",
+			"3, 1":          "in1h,in3h", // listed by time
 			"1,1,x,30,-2,4": "in1h,in4h",
 			"1,2,3,4,5":     "in1h,in2h,in3h,in4h",
 		}

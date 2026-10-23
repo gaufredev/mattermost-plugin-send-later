@@ -431,10 +431,14 @@
 
         const rect = anchor ? anchor.getBoundingClientRect() : {left: 16, top: window.innerHeight - 64};
         const width = 300;
+        const bottom = Math.max(8, window.innerHeight - rect.top + 8);
         const style = {
             width,
             left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
-            bottom: Math.max(8, window.innerHeight - rect.top + 8),
+            bottom,
+            // In a short window the list scrolls instead of running off the top of the screen.
+            maxHeight: Math.max(160, window.innerHeight - bottom - 8),
+            overflowY: 'auto',
         };
 
         const hasText = (draft.message || '').trim() !== '';

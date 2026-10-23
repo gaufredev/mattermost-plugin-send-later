@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -65,19 +66,32 @@ type preset struct {
 	SendAt int64  `json:"send_at"`
 }
 
-// computePresets returns the quick choices (today, tomorrow, Monday) in the person's time zone.
+// computePresets returns the quick choices in the person's time zone, sorted by time, with
+// no two choices for the same moment (the one listed first below wins):
+//   - in N hours (setting RelativeHours, default 1 and 2)
+//   - today at the early time (EarlyTime, 09:00) while it is still ahead — after midnight too
+//   - today at the morning time (TomorrowTime, 10:00) while it is still ahead
+//   - today at TodayTime (17:00) while it is still ahead
+//   - tomorrow at the early time, once today's has passed (EarlyTime "0" hides both early ones)
+//   - tomorrow at the morning time
+//   - next Monday at MondayTime (10:00)
 func computePresets(now time.Time, up userPrefs, cfg *configuration) []preset {
 	n := now.In(up.Loc)
 	y, mo, d := n.Date()
-	var out []preset
+	ahead := func(t time.Time) bool { return t.After(n.Add(time.Minute)) }
 
-	add := func(key string, at time.Time) {
-		out = append(out, preset{
-			Key:    key,
-			Label:  tr(up.Ko, "preset."+key, clockLabel(at, up)),
-			Detail: dateLabel(at, n, up),
-			SendAt: model.GetMillisForTime(at),
-		})
+	var out []preset
+	add := func(key, label, detail string, at time.Time) {
+		ms := model.GetMillisForTime(at)
+		for _, p := range out {
+			if p.SendAt == ms {
+				return // the same moment is already offered
+			}
+		}
+		out = append(out, preset{Key: key, Label: label, Detail: detail, SendAt: ms})
+	}
+	addAt := func(key string, at time.Time) {
+		add(key, tr(up.Ko, "preset."+key, clockLabel(at, up)), dateLabel(at, n, up), at)
 	}
 
 	// "In 1 hour", "In 2 hours": the detail shows the clock time it lands on.
@@ -94,45 +108,41 @@ func computePresets(now time.Time, up userPrefs, cfg *configuration) []preset {
 		if dayDiff(n, at) != 0 {
 			detail = dateLabel(at, n, up) + " " + detail
 		}
-		out = append(out, preset{Key: fmt.Sprintf("in%dh", h), Label: label, Detail: detail, SendAt: model.GetMillisForTime(at)})
+		add(fmt.Sprintf("in%dh", h), label, detail, at)
 	}
 
-	// Late at night (after midnight) the morning hasn't come yet: offer today at the morning
-	// time ("내일" time), so a message written at 1 AM can still go out this morning.
-	// An earlier choice (09:00 by default) comes first; empty setting = 09:00, "0" hides it.
-	if eh, em, ok := earlyClock(cfg.EarlyTime); ok {
-		if early := time.Date(y, mo, d, eh, em, 0, 0, up.Loc); early.After(n.Add(time.Minute)) {
-			add("early", early)
-		}
-	}
+	eh, em, earlyOn := earlyClock(cfg.EarlyTime)
 	mh, mm := parseClock(cfg.TomorrowTime, 10, 0)
-	morning := time.Date(y, mo, d, mh, mm, 0, 0, up.Loc)
-	if morning.After(n.Add(time.Minute)) && !(len(out) > 0 && out[len(out)-1].Key == "early" && out[len(out)-1].SendAt == model.GetMillisForTime(morning)) {
-		add("morning", morning)
+	th, tm := parseClock(cfg.TodayTime, 17, 0)
+	wh, wm := parseClock(cfg.MondayTime, 10, 0)
+
+	earlyToday := earlyOn && ahead(time.Date(y, mo, d, eh, em, 0, 0, up.Loc))
+	if earlyToday {
+		addAt("early", time.Date(y, mo, d, eh, em, 0, 0, up.Loc))
 	}
-
-	h, m := parseClock(cfg.TodayTime, 17, 0)
-	if today := time.Date(y, mo, d, h, m, 0, 0, up.Loc); today.After(n.Add(time.Minute)) && !today.Equal(morning) {
-		add("today", today)
+	if morning := time.Date(y, mo, d, mh, mm, 0, 0, up.Loc); ahead(morning) {
+		addAt("morning", morning)
 	}
+	if today := time.Date(y, mo, d, th, tm, 0, 0, up.Loc); ahead(today) {
+		addAt("today", today)
+	}
+	if earlyOn && !earlyToday {
+		addAt("tomorrow_early", time.Date(y, mo, d+1, eh, em, 0, 0, up.Loc))
+	}
+	addAt("tomorrow", time.Date(y, mo, d+1, mh, mm, 0, 0, up.Loc))
 
-	h, m = parseClock(cfg.TomorrowTime, 10, 0)
-	tomorrow := time.Date(y, mo, d+1, h, m, 0, 0, up.Loc)
-	add("tomorrow", tomorrow)
-
-	h, m = parseClock(cfg.MondayTime, 10, 0)
 	days := (8 - int(n.Weekday())) % 7
 	if days == 0 {
 		days = 7
 	}
-	if monday := time.Date(y, mo, d+days, h, m, 0, 0, up.Loc); !monday.Equal(tomorrow) {
-		add("monday", monday)
-	}
+	addAt("monday", time.Date(y, mo, d+days, wh, wm, 0, 0, up.Loc))
 
+	sort.SliceStable(out, func(i, j int) bool { return out[i].SendAt < out[j].SendAt })
 	return out
 }
 
-// earlyClock reads the "early morning" setting: empty means 09:00, "0" or "off" hides it.
+// earlyClock reads the "early morning" setting (EarlyTime): empty means 09:00; "0" or "off"
+// hides both early choices, today's and tomorrow's.
 func earlyClock(s string) (int, int, bool) {
 	s = strings.TrimSpace(s)
 	if s == "0" || strings.EqualFold(s, "off") {

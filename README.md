@@ -6,8 +6,8 @@ Schedule Mattermost messages to send later, the way Slack does it. Free and open
 
 | 컴퓨터 · Computer | 목록 · List |
 |---|---|
-| 입력창 아래 시계 버튼: 1시간 후, 2시간 후, 오늘 17:00, 내일 10:00, 월요일 10:00, 또는 직접 선택. | 오른쪽 사이드바의 예약된 메시지: 지금 보내기 · 수정 · 복사 · 삭제. |
-| A clock button under the message box: in 1 hour, in 2 hours, today 17:00, tomorrow 10:00, Monday 10:00, or a custom time. | Scheduled messages in the right-hand sidebar: send now, edit, copy, delete. |
+| 입력창 아래 시계 버튼: 1시간 후, 2시간 후, 오늘 오전 9:00 · 10:00 (그 시간 전일 때), 오늘 17:00, 내일 오전 9:00 · 10:00, 월요일 10:00, 또는 직접 선택. | 오른쪽 사이드바의 예약된 메시지: 지금 보내기 · 수정 · 복사 · 삭제. |
+| A clock button under the message box: in 1 hour, in 2 hours, today 9:00 · 10:00 (while still ahead), today 17:00, tomorrow 9:00 · 10:00, Monday 10:00, or a custom time. | Scheduled messages in the right-hand sidebar: send now, edit, copy, delete. |
 
 ---
 
@@ -33,7 +33,7 @@ Schedule Mattermost messages to send later, the way Slack does it. Free and open
 
 1. 플러그인 파일을 받습니다: `send-later-<버전>.tar.gz` (릴리스 페이지, 또는 아래 「직접 빌드」).
 2. 관리자 도구(System Console) → 플러그인 → 플러그인 관리 → 「플러그인 업로드」에서 「파일 선택」 → 「업로드」로 올리고 **활성화**합니다. 업로드 버튼이 없으면 서버 설정에서 `PluginSettings.EnableUploads`를 켜야 합니다.
-3. 관리자 도구 → 플러그인 → Send Later에서 빠른 선택 시간(기본: 1시간 후 · 2시간 후 · 오늘 17:00 · 내일 10:00 · 월요일 10:00)과, 표준 시간대를 설정하지 않은 사람에게 쓸 기본 시간대(예: `Asia/Seoul`)를 정합니다.
+3. 관리자 도구 → 플러그인 → Send Later에서 빠른 선택 시간(기본: 1시간 후 · 2시간 후 · 아침 9:00 · 아침 10:00 · 오늘 17:00 · 월요일 10:00)과, 표준 시간대를 설정하지 않은 사람에게 쓸 기본 시간대(예: `Asia/Seoul`)를 정합니다.
 
 Mattermost **11.7 이상**이 필요합니다. 유료 라이선스가 있는 서버에서는 Mattermost 자체의 예약 메시지 기능도 「예약된 메시지」로 표시되므로, 두 가지가 함께 보일 수 있습니다.
 
@@ -61,7 +61,7 @@ If, at the scheduled time, you have left the channel, the channel was archived o
 
 1. Get the plugin file `send-later-<version>.tar.gz` (from the releases page, or see *Build it yourself* below).
 2. System Console → Plugins → Plugin Management → *Upload Plugin*, then **Enable** it. If there is no upload button, turn on `PluginSettings.EnableUploads` in the server configuration.
-3. System Console → Plugins → Send Later: set the quick-choice times (default: in 1 hour, in 2 hours, today 17:00, tomorrow 10:00, Monday 10:00) and the default time zone for people who have not set one (for example `Europe/Paris`).
+3. System Console → Plugins → Send Later: set the quick-choice times (default: in 1 hour, in 2 hours, mornings at 9:00 and 10:00, today 17:00, Monday 10:00) and the default time zone for people who have not set one (for example `Europe/Paris`).
 
 Requires Mattermost **11.7 or later**. On servers with a paid licence, Mattermost's own scheduled messages also appear as *Scheduled messages*, so people may see both.
 
